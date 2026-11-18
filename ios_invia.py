@@ -127,8 +127,11 @@ def novita(versione, testo):
 def invia(app, numero, n_build, testo):
     tutte = versioni(app)
     in_vendita = next((v for v in tutte if v["attributes"]["appStoreState"] == "READY_FOR_SALE"), None)
-    if in_vendita and in_vendita["attributes"]["versionString"] == numero:
-        print(f"App Store: {numero} è già in vendita")
+    gia = next((v for v in tutte if v["attributes"]["versionString"] == numero and v["attributes"]["appStoreState"] in (
+        "READY_FOR_SALE", "WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_DEVELOPER_RELEASE", "PENDING_APPLE_RELEASE",
+        "PROCESSING_FOR_APP_STORE", "READY_FOR_DISTRIBUTION")), None)
+    if gia:
+        print(f"App Store: {numero} è già {gia['attributes']['appStoreState']}: niente da fare")
         return
     if any(v["attributes"]["appStoreState"] == "IN_REVIEW" for v in tutte):
         print("::warning::App Store: c'è una versione IN REVISIONE in questo momento; la", numero, "si manda al prossimo giro")
@@ -149,8 +152,12 @@ def invia(app, numero, n_build, testo):
         print("versione", numero, "creata")
     chiama("PATCH", f"/v1/appStoreVersions/{ver}/relationships/build", {"data": {"type": "builds", "id": b["id"]}})
     dettagli_revisione(ver, in_vendita["id"] if in_vendita else None)
-    if in_vendita:  # la prima versione non ha «Novità»
-        novita(ver, testo)
+    if not in_vendita:
+        # prima pubblicazione: Apple vuole il video dell'app sul telefono (Guideline 2.1), l'invio resta a mano
+        print(f"::warning::App Store: {numero} pronta con la build {n_build}, ma è la PRIMA pubblicazione: "
+              "serve il video per i revisori, invio a mano (dev/app-store/strumenti/ripresenta.py invia)")
+        return
+    novita(ver, testo)
     ritira_invii(app)  # un invio in bozza rimasto aperto impedisce di crearne uno nuovo
     sub = chiama("POST", "/v1/reviewSubmissions", {"data": {"type": "reviewSubmissions", "attributes": {"platform": "IOS"},
           "relationships": {"app": {"data": {"type": "apps", "id": app}}}}})["data"]["id"]
