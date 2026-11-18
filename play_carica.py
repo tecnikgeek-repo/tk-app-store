@@ -81,7 +81,7 @@ def carica(pacchetto, aab, note):
         "releaseNotes": [{"language": "it-IT", "text": note[:500]}]}]})
     # changesNotSentForReview=false: le modifiche partono subito per la revisione di Google
     chiama("POST", f"{API}/{pacchetto}/edits/{e}:commit?changesNotSentForReview=false")
-    print(f"Google Play: {nome} (codice {codice}) caricata e inviata in revisione")
+    print(f"Google Play: {nome} caricata e inviata in revisione")
 
 
 if __name__ == "__main__":
