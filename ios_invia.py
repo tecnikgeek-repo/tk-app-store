@@ -14,6 +14,7 @@ Regole:
 - i dati per i revisori (contatto, account demo, note) si copiano dalla versione precedente."""
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -118,7 +119,15 @@ def dettagli_revisione(versione, precedente):
     print("dati per i revisori copiati dalla versione precedente")
 
 
+def pulisci(testo):
+    # Apple rifiuta simboli ed emoji nelle «Novità» (409 INVALID_CHARACTERS, es. «✕»): croci → «X», altri simboli via
+    import unicodedata
+    testo = re.sub("[✕✖✗✘×]", "X", testo)
+    return "".join(ch for ch in testo if unicodedata.category(ch) != "So" and ord(ch) <= 0xFFFF)
+
+
 def novita(versione, testo):
+    testo = pulisci(testo)
     for loc in chiama("GET", f"/v1/appStoreVersions/{versione}/appStoreVersionLocalizations")["data"]:
         chiama("PATCH", f"/v1/appStoreVersionLocalizations/{loc['id']}", {"data": {
             "type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": {"whatsNew": testo[:4000]}}})
