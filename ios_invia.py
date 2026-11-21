@@ -119,6 +119,31 @@ def dettagli_revisione(versione, precedente):
     print("dati per i revisori copiati dalla versione precedente")
 
 
+# Classificazione per età: domande nuove di Apple (novembre 2026) e correzioni per singola app.
+# Si possono cambiare solo mentre c'è una versione aperta, quindi si fanno a ogni giro.
+ETA_NUOVE = {"datingAndRelationships": False, "sharedLocation": False}
+ETA_APP = {"6832613390": {"messagingAndChat": True}}  # triburba: messaggi privati dalla 1.0.38
+
+
+def eta(app):
+    for info in chiama("GET", f"/v1/apps/{app}/appInfos")["data"]:
+        s, d = api("GET", f"/v1/appInfos/{info['id']}/ageRatingDeclaration")
+        if s != 200:
+            continue
+        a = d["data"]
+        att = {k: v for k, v in ETA_NUOVE.items() if a["attributes"].get(k) is None}
+        if a["attributes"].get("socialMedia") and a["attributes"].get("socialMediaAgeRestricted") is None:
+            att["socialMediaAgeRestricted"] = False  # «true» solo con una verifica dell'età vera (ageAssurance)
+        att.update({k: v for k, v in ETA_APP.get(app, {}).items() if a["attributes"].get(k) != v})
+        if not att:
+            continue
+        s, d = api("PATCH", f"/v1/ageRatingDeclarations/{a['id']}", {"data": {"type": "ageRatingDeclarations", "id": a["id"], "attributes": att}})
+        if s == 200:
+            print("classificazione per età aggiornata:", ", ".join(att))
+        elif s != 409:  # 409 = scheda informazioni non modificabile in questo momento
+            print(f"::warning::classificazione per età -> {s}: {json.dumps(d, ensure_ascii=False)[:500]}")
+
+
 def pulisci(testo):
     # Apple rifiuta simboli ed emoji nelle «Novità» (409 INVALID_CHARACTERS, es. «✕»): croci → «X», altri simboli via
     import unicodedata
@@ -172,6 +197,7 @@ def invia(app, numero, n_build, testo):
         print("versione", numero, "creata")
     chiama("PATCH", f"/v1/appStoreVersions/{ver}/relationships/build", {"data": {"type": "builds", "id": b["id"]}})
     dettagli_revisione(ver, in_vendita["id"] if in_vendita else None)
+    eta(app)
     if not in_vendita:
         # prima pubblicazione: Apple vuole il video dell'app sul telefono (Guideline 2.1), l'invio resta a mano
         print(f"::warning::App Store: {numero} pronta con la build {n_build}, ma è la PRIMA pubblicazione: "
