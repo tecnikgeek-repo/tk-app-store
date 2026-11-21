@@ -123,7 +123,18 @@ def pulisci(testo):
     # Apple rifiuta simboli ed emoji nelle «Novità» (409 INVALID_CHARACTERS, es. «✕»): croci → «X», altri simboli via
     import unicodedata
     testo = re.sub("[✕✖✗✘×]", "X", testo)
-    return "".join(ch for ch in testo if unicodedata.category(ch) != "So" and ord(ch) <= 0xFFFF)
+    testo = "".join(ch for ch in testo if unicodedata.category(ch) != "So" and ord(ch) <= 0xFFFF)
+    # Guideline 2.3.10 (tk-pdf 1.7.10 respinta il 18/11/2026): niente Google Play, Android, APK nelle «Novità».
+    # Si toglie il pezzo di frase (fra «;») che li nomina; se la riga resta vuota sparisce.
+    terzi = re.compile(r"google\s*play|play\s*store|android|\bapk\b", re.I)
+    righe = []
+    for riga in testo.splitlines():
+        punto = "• " if riga.lstrip().startswith("•") else ""
+        pezzi = [p.strip() for p in riga.lstrip("• ").split(";") if p.strip() and not terzi.search(p)]
+        if pezzi:
+            frase = "; ".join(pezzi)
+            righe.append(punto + frase[:1].upper() + frase[1:])
+    return "\n".join(righe) or "• Miglioramenti e correzioni."
 
 
 def novita(versione, testo):

@@ -14,6 +14,8 @@ import subprocess
 import sys
 import urllib.request
 
+sys.stdout.reconfigure(encoding="utf-8")  # console di Windows (cp1252): la freccia «↳» la faceva fermare
+
 QUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, QUI)
 import ios_invia  # noqa: E402
